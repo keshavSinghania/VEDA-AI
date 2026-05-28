@@ -16,21 +16,39 @@ type GenerateInput = {
 };
 
 const buildPrompt = (data: GenerateInput) => `
-You are a senior exam paper generator AI.
+You are a senior AI system that generates structured academic assignment question papers for a production-grade educational platform.
 
-Return ONLY valid JSON. No markdown. No explanation.
-
----
-
-INPUT:
-Instructions: ${data.instructions}
-Due Date: ${data.dueDate}
-Question Types: ${JSON.stringify(data.questionTypes)}
-Additional: ${data.additionalInstructions || "None"}
+You MUST act as a deterministic exam generator, not a conversational AI.
 
 ---
 
-OUTPUT FORMAT (STRICT)
+INPUT DATA
+
+Instructions:
+${data.instructions}
+
+Due Date:
+${data.dueDate}
+
+Question Types Configuration:
+${JSON.stringify(data.questionTypes)}
+
+Additional Notes:
+${data.additionalInstructions || "None"}
+
+---
+
+CRITICAL RULES
+
+- Output ONLY valid JSON
+- No markdown
+- No explanations
+- No extra text
+- Must be JSON.parse() safe
+
+---
+
+OUTPUT FORMAT
 
 {
   "assignmentMeta": {
@@ -46,10 +64,7 @@ OUTPUT FORMAT (STRICT)
         {
           "text": string,
           "marks": number,
-          "difficulty": "easy" | "medium" | "hard",
-          "type": "mcq" | "short" | "long",
-          "options": string[], 
-          "correctAnswer": string
+          "difficulty": "easy" | "medium" | "hard"
         }
       ]
     }
@@ -58,29 +73,19 @@ OUTPUT FORMAT (STRICT)
 
 ---
 
-CRITICAL RULES:
+RULES
 
 1. Each questionTypes item = one section
-2. EXACT numberOfQuestions must be generated
-3. EXACT marksPerQuestion must be used
-4. No extra questions or sections
-5. No hallucination outside instructions
+2. section.title = type
+3. section.questionType = type
+4. EXACT numberOfQuestions per section
+5. EXACT marksPerQuestion per question
+6. No extra questions or sections
+7. No external knowledge beyond instructions
 
 ---
 
-MCQ RULES (VERY IMPORTANT):
-
-- If type = "mcq":
-  - MUST include "options" array with EXACT 4 options
-  - MUST include "correctAnswer"
-  - options must be realistic and unique
-- If NOT MCQ:
-  - options = []
-  - correctAnswer = ""
-
----
-
-DIFFICULTY DISTRIBUTION:
+DIFFICULTY
 - 40% easy
 - 40% medium
 - 20% hard
@@ -89,8 +94,8 @@ If only 1 question → medium
 
 ---
 
-FINAL RULE:
-Return ONLY valid JSON.
+FINAL RULE
+Return ONLY JSON.
 `;
 
 const cleanJSON = (text: string) => {
@@ -100,7 +105,7 @@ const cleanJSON = (text: string) => {
 const safeParse = (text: string) => {
   try {
     return JSON.parse(text);
-  } catch {
+  } catch (err) {
     return null;
   }
 };
@@ -116,18 +121,21 @@ const generateOnce = async (model: any, prompt: string) => {
 
 export const generateAIQuestionPaper = async (data: GenerateInput) => {
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-3.5-flash",
   });
 
   const prompt = buildPrompt(data);
 
+  //TRYING 2 TIMES
   let output = await generateOnce(model, prompt);
 
   if (!output) {
     console.warn("Retrying AI generation...");
+
     output = await generateOnce(model, prompt);
   }
 
+  //FINAL FALLBACK (NEVER FAIL API)
   if (!output) {
     return {
       assignmentMeta: {
@@ -138,15 +146,12 @@ export const generateAIQuestionPaper = async (data: GenerateInput) => {
       sections: [
         {
           title: "Fallback Section",
-          questionType: "fallback",
+          questionType: "Fallback",
           questions: [
             {
               text: "AI generation failed. Please try again.",
               marks: 1,
               difficulty: "easy",
-              type: "short",
-              options: [],
-              correctAnswer: "",
             },
           ],
         },
@@ -154,13 +159,13 @@ export const generateAIQuestionPaper = async (data: GenerateInput) => {
     };
   }
 
+  //AUTO META FIX (SAFEGUARD)
   output.assignmentMeta = {
     dueDate: data.dueDate,
     totalSections: output.sections?.length || 0,
     totalQuestions:
       output.sections?.reduce(
-        (acc: number, sec: any) =>
-          acc + (sec.questions?.length || 0),
+        (acc: number, sec: any) => acc + (sec.questions?.length || 0),
         0
       ) || 0,
   };
@@ -168,6 +173,13 @@ export const generateAIQuestionPaper = async (data: GenerateInput) => {
   return output;
 };
 
+// import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
+// async function listModels() {
+//   const models = await genAI.listModels();
+//   console.log(models);
+// }
 
+// listModels();
