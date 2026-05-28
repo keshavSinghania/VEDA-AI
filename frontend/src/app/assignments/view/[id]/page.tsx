@@ -44,22 +44,19 @@ export default function ViewAssignmentPage() {
   const id = params?.id as string;
 
   const [loading, setLoading] = useState(true);
-  const [assignment, setAssignment] =
-    useState<Assignment | null>(null);
+  const [assignment, setAssignment] = useState<Assignment | null>(null);
 
   useEffect(() => {
+    if (!id) return;
     fetchAssignment();
-  }, []);
+  }, [id]);
 
   const fetchAssignment = async () => {
     try {
-      const res = await api.get(
-        `/api/assignment/${id}`
-      );
-
+      const res = await api.get(`/api/assignment/${id}`);
       setAssignment(res.data.assignment);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error("Failed to fetch assignment", err);
     } finally {
       setLoading(false);
     }
@@ -69,181 +66,106 @@ export default function ViewAssignmentPage() {
     if (!assignment) return;
 
     const pdf = new jsPDF();
-
     let y = 20;
 
-    pdf.setFontSize(18);
-    pdf.text(assignment.title, 20, y);
+    const addLine = (text: string, gap = 10) => {
+      pdf.text(text, 20, y);
+      y += gap;
+      if (y > 270) {
+        pdf.addPage();
+        y = 20;
+      }
+    };
 
-    y += 15;
+    pdf.setFontSize(18);
+    addLine(assignment.title, 14);
 
     pdf.setFontSize(12);
 
-    pdf.text(
-      "Name: __________________________",
-      20,
-      y
-    );
+    addLine("Name: ________________________________");
+    addLine("Roll Number: _________________________");
+    addLine("Section: _____________________________");
+    addLine("Total Time: __________________________");
 
-    y += 10;
+    y += 5;
 
-    pdf.text(
-      "Roll Number: ___________________",
-      20,
-      y
-    );
+    assignment.result.sections.forEach((section, sectionIndex) => {
+      pdf.setFontSize(14);
+      addLine(`Section ${String.fromCharCode(65 + sectionIndex)}: ${section.title}`, 12);
 
-    y += 10;
+      pdf.setFontSize(12);
 
-    pdf.text(
-      "Section: _______________________",
-      20,
-      y
-    );
-
-    y += 10;
-
-    pdf.text(
-      "Total Time:",
-      20,
-      y
-    );
-
-    y += 20;
-
-    assignment.result.sections.forEach(
-      (section, sectionIndex) => {
-        pdf.setFontSize(14);
-
-        pdf.text(
-          `Section ${String.fromCharCode(
-            65 + sectionIndex
-          )}`,
-          20,
-          y
+      section.questions.forEach((q, index) => {
+        const lines = pdf.splitTextToSize(
+          `${index + 1}. ${q.text}`,
+          165
         );
+
+        pdf.text(lines, 20, y);
+        y += lines.length * 6;
+
+        pdf.text(`[${q.marks} Marks]`, 180, y - 5);
 
         y += 8;
 
-        pdf.setFontSize(12);
+        if (y > 270) {
+          pdf.addPage();
+          y = 20;
+        }
+      });
 
-        pdf.text(section.title, 20, y);
+      y += 10;
+    });
 
-        y += 12;
-
-        section.questions.forEach(
-          (question, index) => {
-            const lines = pdf.splitTextToSize(
-              `${index + 1}. ${question.text}`,
-              160
-            );
-
-            pdf.text(lines, 20, y);
-
-            y += lines.length * 6;
-
-            pdf.text(
-              `[${question.marks} Marks]`,
-              170,
-              y - 5
-            );
-
-            y += 8;
-
-            if (y > 260) {
-              pdf.addPage();
-              y = 20;
-            }
-          }
-        );
-
-        y += 12;
-      }
-    );
-
-    pdf.save(
-      `${assignment.title.replace(
-        /\s+/g,
-        "-"
-      )}.pdf`
-    );
+    pdf.save(`${assignment.title.replace(/\s+/g, "-")}.pdf`);
   };
 
   if (loading) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          fontSize: "16px",
-        }}
-      >
-        Loading Assignment...
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+      }}>
+        Loading assignment...
       </div>
     );
   }
 
   if (!assignment) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          fontSize: "16px",
-        }}
-      >
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+      }}>
         Assignment not found
       </div>
     );
   }
 
   return (
-    <div
-      className="bg-[#e7e7e7] w-full"
-      style={{
-        minHeight: "100vh",
-        paddingTop: "10px",
-      }}
-    >
+    <div style={{ minHeight: "100vh", background: "#e7e7e7", paddingTop: 10 }}>
       <Header />
 
       {/* TOP BAR */}
-      <div
-        style={{
-          margin: "10px",
-          background: "#1A1A1A",
-          borderRadius: "14px",
-          padding: "16px 20px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: "16px",
-          flexWrap: "wrap",
-        }}
-      >
+      <div style={{
+        margin: 10,
+        background: "#1A1A1A",
+        borderRadius: 14,
+        padding: "16px 20px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap"
+      }}>
         <div>
-          <h2
-            style={{
-              color: "#fff",
-              margin: 0,
-              fontSize: "20px",
-            }}
-          >
+          <h2 style={{ color: "#fff", margin: 0 }}>
             {assignment.title}
           </h2>
-
-          <p
-            style={{
-              color: "#bbb",
-              marginTop: "6px",
-              marginBottom: 0,
-              fontSize: "13px",
-            }}
-          >
+          <p style={{ color: "#bbb", marginTop: 6, fontSize: 13 }}>
             AI Generated Assignment
           </p>
         </div>
@@ -253,13 +175,12 @@ export default function ViewAssignmentPage() {
           style={{
             background: "#fff",
             border: "none",
-            borderRadius: "999px",
-            padding: "10px 18px",
+            padding: "10px 16px",
+            borderRadius: 999,
             display: "flex",
             alignItems: "center",
-            gap: "8px",
-            cursor: "pointer",
-            fontWeight: 600,
+            gap: 8,
+            cursor: "pointer"
           }}
         >
           <Download size={16} />
@@ -268,236 +189,75 @@ export default function ViewAssignmentPage() {
       </div>
 
       {/* PAPER */}
-      <div
-        style={{
-          margin: "10px",
-          background: "#fff",
-          borderRadius: "16px",
-          border: "1px solid #EAEAEA",
-          overflow: "hidden",
-        }}
-      >
-        {/* PAPER TITLE */}
-        <div
-          style={{
-            padding: "30px",
-            borderBottom: "1px solid #eee",
-            textAlign: "center",
-          }}
-        >
-          <h1
-            style={{
-              margin: 0,
-              fontSize: "26px",
-            }}
-          >
-            {assignment.title}
-          </h1>
+      <div style={{
+        margin: 10,
+        background: "#fff",
+        borderRadius: 14,
+        border: "1px solid #eee"
+      }}>
+
+        {/* TITLE */}
+        <div style={{
+          padding: 30,
+          textAlign: "center",
+          borderBottom: "1px solid #eee"
+        }}>
+          <h1 style={{ margin: 0 }}>{assignment.title}</h1>
         </div>
 
         {/* STUDENT INFO */}
-        <div
-          style={{
-            padding: "24px 30px",
-            borderBottom: "1px solid #eee",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "14px",
-            }}
-          >
-            <div>
-              <strong>Name:</strong>
-              <span
-                style={{
-                  display: "inline-block",
-                  width: "250px",
-                  borderBottom: "1px solid #333",
-                  marginLeft: "10px",
-                }}
-              />
-            </div>
+        <div style={{ padding: 30, borderBottom: "1px solid #eee" }}>
+          <h3 style={{ marginBottom: 16 }}>Student Information</h3>
 
-            <div>
-              <strong>Roll Number:</strong>
-              <span
-                style={{
-                  display: "inline-block",
-                  width: "200px",
-                  borderBottom: "1px solid #333",
-                  marginLeft: "10px",
-                }}
-              />
-            </div>
-
-            <div>
-              <strong>Section:</strong>
-              <span
-                style={{
-                  display: "inline-block",
-                  width: "200px",
-                  borderBottom: "1px solid #333",
-                  marginLeft: "10px",
-                }}
-              />
-            </div>
-
-            <div>
-              <strong>Total Time:</strong>
-              <span
-                style={{
-                  display: "inline-block",
-                  width: "200px",
-                  borderBottom: "1px solid #333",
-                  marginLeft: "10px",
-                }}
-              />
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>Name: ________________________________</div>
+            <div>Roll Number: _________________________</div>
+            <div>Section: _____________________________</div>
+            <div>Total Time: __________________________</div>
           </div>
 
-          <div
-            style={{
-              marginTop: "20px",
-              display: "flex",
-              gap: "30px",
-              flexWrap: "wrap",
-              fontSize: "14px",
-              color: "#666",
-            }}
-          >
+          <div style={{
+            marginTop: 20,
+            fontSize: 13,
+            color: "#666",
+            display: "flex",
+            gap: 20,
+            flexWrap: "wrap"
+          }}>
             <div>
-              Total Sections:{" "}
-              <strong>
-                {
-                  assignment.result.assignmentMeta
-                    .totalSections
-                }
-              </strong>
+              Total Questions: <b>{assignment.result.assignmentMeta.totalQuestions}</b>
             </div>
-
             <div>
-              Total Questions:{" "}
-              <strong>
-                {
-                  assignment.result.assignmentMeta
-                    .totalQuestions
-                }
-              </strong>
+              Total Sections: <b>{assignment.result.assignmentMeta.totalSections}</b>
             </div>
-
             <div>
-              Due Date:
-              <strong>
-                {" "}
-                {assignment.dueDate}
-              </strong>
+              Due Date: <b>{assignment.dueDate}</b>
             </div>
           </div>
         </div>
 
         {/* QUESTIONS */}
-        <div
-          style={{
-            padding: "30px",
-          }}
-        >
-          {assignment.result.sections.map(
-            (section, sectionIndex) => (
-              <div
-                key={sectionIndex}
-                style={{
-                  marginBottom: "40px",
-                }}
-              >
-                <h2
-                  style={{
-                    marginBottom: "6px",
-                  }}
-                >
-                  Section{" "}
-                  {String.fromCharCode(
-                    65 + sectionIndex
-                  )}
-                </h2>
+        <div style={{ padding: 30 }}>
+          {assignment.result.sections.map((section, i) => (
+            <div key={i} style={{ marginBottom: 40 }}>
+              <h2>Section {String.fromCharCode(65 + i)}</h2>
+              <p style={{ color: "#666", fontWeight: 600 }}>{section.title}</p>
 
-                <p
-                  style={{
-                    color: "#666",
-                    marginBottom: "20px",
-                    fontWeight: 600,
-                  }}
-                >
-                  {section.title}
-                </p>
+              {section.questions.map((q, j) => (
+                <div key={j} style={{ marginTop: 12 }}>
+                  <p style={{ margin: 0, lineHeight: 1.7 }}>
+                    {j + 1}. {q.text}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 13, color: "#666" }}>
+                    [{q.marks} Marks]
+                  </p>
+                </div>
+              ))}
+            </div>
+          ))}
 
-                {section.questions.map(
-                  (question, index) => (
-                    <div
-                      key={index}
-                      style={{
-                        padding: "10px 0",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent:
-                            "space-between",
-                          gap: "20px",
-                        }}
-                      >
-                        <p
-                          style={{
-                            margin: 0,
-                            flex: 1,
-                            whiteSpace:
-                              "pre-line",
-                            lineHeight: 1.8,
-                            fontSize: "15px",
-                          }}
-                        >
-                          <strong>
-                            {index + 1}.
-                          </strong>{" "}
-                          {question.text}
-                        </p>
-
-                        <div
-                          style={{
-                            minWidth: "90px",
-                            textAlign: "right",
-                            fontWeight: 600,
-                            fontSize: "14px",
-                          }}
-                        >
-                          [{question.marks} Mark]
-                        </div>
-                      </div>
-                    </div>
-                  )
-                )}
-              </div>
-            )
-          )}
-
-          <div
-            style={{
-              borderTop: "1px solid #eee",
-              paddingTop: "20px",
-              textAlign: "center",
-            }}
-          >
-            <p
-              style={{
-                color: "#777",
-                margin: 0,
-              }}
-            >
-              — End of Question Paper —
-            </p>
+          <div style={{ textAlign: "center", borderTop: "1px solid #eee", paddingTop: 20 }}>
+            — End of Assignment —
           </div>
         </div>
       </div>

@@ -7,7 +7,7 @@ import { Plus } from "lucide-react";
 import { useAssignmentStore } from "@/store/assignmentStore";
 import { assignmentSchema } from "@/lib/validation";
 import api from "@/lib/axios";
-import { io } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 import { useRouter } from "next/navigation";
 
 type StatusType =
@@ -41,12 +41,12 @@ export default function CreateAssignmentForm() {
   const [showForm, setShowForm] = useState(true);
 
   // SOCKET
-  useEffect(() => {
-    const socket = io(process.env.NEXT_PUBLIC_API_URL!, {
+  useEffect((): (() => void) => {
+    const socket: Socket = io(process.env.NEXT_PUBLIC_API_URL!, {
       transports: ["websocket"],
     });
 
-    socket.on("assignment:status", (data) => {
+    socket.on("assignment:status", (data: any) => {
       if (jobId && data.jobId !== jobId) return;
 
       setStatus(data.status);
@@ -72,7 +72,9 @@ export default function CreateAssignmentForm() {
       }
     });
 
-    return () => socket.disconnect();
+    return () => {
+      socket.disconnect();
+    };
   }, [jobId, router, resetAssignment]);
 
   const totalQuestions = assignment.questionTypes.reduce(
@@ -100,7 +102,6 @@ export default function CreateAssignmentForm() {
 
     setStatus("queued");
     setProgress(0);
-
     setShowForm(false);
 
     try {
@@ -189,20 +190,21 @@ export default function CreateAssignmentForm() {
               }}
             />
           </div>
+
+          {/* MESSAGE (FIXED RESPONSIVE) */}
           <div
             style={{
               textAlign: "center",
               maxWidth: "600px",
-              margin: "0 auto",
-              padding: "20px",
+              margin: "18px auto 0",
+              padding: "10px",
             }}
           >
             <h2
               style={{
-                fontSize: "clamp(20px, 4vw, 30px)",
+                fontSize: "clamp(18px, 3.5vw, 28px)",
                 fontWeight: 700,
-                marginBottom: "12px",
-                lineHeight: 1.3,
+                marginBottom: "10px",
               }}
             >
               Your assignment is being generated
@@ -210,14 +212,14 @@ export default function CreateAssignmentForm() {
 
             <p
               style={{
-                fontSize: "clamp(14px, 2vw, 16px)",
+                fontSize: "clamp(13px, 2vw, 15px)",
                 color: "#666",
                 lineHeight: 1.6,
                 margin: 0,
               }}
             >
-              Feel free to leave this page or continue working on other tasks.
-              We'll notify you by email once your assignment is ready.
+              You can safely leave this page. We’ll notify you via email once your
+              assignment is ready, and it will also appear in your dashboard.
             </p>
           </div>
         </div>
@@ -227,32 +229,16 @@ export default function CreateAssignmentForm() {
       {showForm && (
         <>
           <div style={{ marginBottom: "28px" }}>
-            <h2
-              style={{
-                fontSize: "24px",
-                fontWeight: 700,
-              }}
-            >
+            <h2 style={{ fontSize: "24px", fontWeight: 700 }}>
               Assignment Details
             </h2>
 
-            <p
-              style={{
-                fontSize: "14px",
-                color: "#777",
-              }}
-            >
+            <p style={{ fontSize: "14px", color: "#777" }}>
               Create AI-powered question paper
             </p>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "22px",
-            }}
-          >
+          <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
             <FileUpload />
 
             {/* TITLE */}
@@ -264,9 +250,7 @@ export default function CreateAssignmentForm() {
                 value={assignment.title}
                 maxLength={60}
                 placeholder="e.g. Class 10 Trigonometry Test"
-                onChange={(e) =>
-                  setTitle(e.target.value)
-                }
+                onChange={(e) => setTitle(e.target.value)}
                 style={{
                   width: "100%",
                   padding: "12px",
@@ -274,30 +258,6 @@ export default function CreateAssignmentForm() {
                   border: "1px solid #ddd",
                 }}
               />
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginTop: "4px",
-                  fontSize: "12px",
-                  color: "#777",
-                }}
-              >
-                <span>
-                  Give your assignment a meaningful title
-                </span>
-
-                <span>
-                  {assignment.title.length}/60
-                </span>
-              </div>
-
-              {errors?.fieldErrors?.title && (
-                <p style={{ color: "red" }}>
-                  {errors.fieldErrors.title[0]}
-                </p>
-              )}
             </div>
 
             {/* DUE DATE */}
@@ -307,9 +267,7 @@ export default function CreateAssignmentForm() {
               <input
                 type="date"
                 value={assignment.dueDate}
-                onChange={(e) =>
-                  setDueDate(e.target.value)
-                }
+                onChange={(e) => setDueDate(e.target.value)}
                 style={{
                   width: "100%",
                   padding: "12px",
@@ -317,12 +275,6 @@ export default function CreateAssignmentForm() {
                   border: "1px solid #ddd",
                 }}
               />
-
-              {errors?.fieldErrors?.dueDate && (
-                <p style={{ color: "red" }}>
-                  {errors.fieldErrors.dueDate[0]}
-                </p>
-              )}
             </div>
 
             {/* QUESTION TYPES */}
@@ -330,10 +282,7 @@ export default function CreateAssignmentForm() {
               <p>Question Types</p>
 
               {assignment.questionTypes.map((item) => (
-                <QuestionTypeCard
-                  key={item.id}
-                  item={item}
-                />
+                <QuestionTypeCard key={item.id} item={item} />
               ))}
 
               <button
@@ -349,12 +298,6 @@ export default function CreateAssignmentForm() {
                 <Plus size={14} />
                 Add Question Type
               </button>
-
-              {errors?.fieldErrors?.questionTypes && (
-                <p style={{ color: "red" }}>
-                  {errors.fieldErrors.questionTypes[0]}
-                </p>
-              )}
             </div>
 
             {/* TOTALS */}
@@ -366,13 +309,11 @@ export default function CreateAssignmentForm() {
               }}
             >
               <p>
-                Total Questions:
-                <b> {totalQuestions}</b>
+                Total Questions: <b>{totalQuestions}</b>
               </p>
 
               <p>
-                Total Marks:
-                <b> {totalMarks}</b>
+                Total Marks: <b>{totalMarks}</b>
               </p>
             </div>
 
@@ -382,10 +323,7 @@ export default function CreateAssignmentForm() {
 
               <textarea
                 value={assignment.instructions}
-                onChange={(e) =>
-                  setInstructions(e.target.value)
-                }
-                placeholder="Enter syllabus, chapters, topics, difficulty preferences, or any additional instructions..."
+                onChange={(e) => setInstructions(e.target.value)}
                 rows={5}
                 style={{
                   width: "100%",
@@ -394,12 +332,6 @@ export default function CreateAssignmentForm() {
                   border: "1px solid #ddd",
                 }}
               />
-
-              {errors?.fieldErrors?.instructions && (
-                <p style={{ color: "red" }}>
-                  {errors.fieldErrors.instructions[0]}
-                </p>
-              )}
             </div>
 
             {/* BUTTON */}
@@ -414,14 +346,10 @@ export default function CreateAssignmentForm() {
                 color: "#fff",
                 fontWeight: 600,
                 border: "none",
-                cursor: loading
-                  ? "not-allowed"
-                  : "pointer",
+                cursor: loading ? "not-allowed" : "pointer",
               }}
             >
-              {loading
-                ? "Generating..."
-                : "Generate Assignment"}
+              {loading ? "Generating..." : "Generate Assignment"}
             </button>
           </div>
         </>
